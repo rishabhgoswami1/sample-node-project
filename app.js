@@ -1,11 +1,18 @@
+require("dotenv").config();
 var http = require("http");
 var express = require("express");
 const axios = require("axios");
 const FormData = require("form-data");
 const formidable = require("formidable");
 const fs = require("fs");
+const { MedplumClient } = require("@medplum/core");
 
 var app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+const medplum = new MedplumClient({
+	baseUrl: "https://fhir.ovok.com/",
+});
 
 app.post("/upload", (req, res) => {
 	const form = new formidable.IncomingForm();
@@ -87,6 +94,36 @@ async function uploadAndSendFile(file, title, externalId, recipient) {
 		throw error;
 	}
 }
+
+app.post("/webhook", async (req, res) => {
+	try {
+		const requestBody = req.body;
+		if (requestBody.event === "DOCUMENT_SIGNED") {
+			await medplum.startClientLogin(
+				process.env.MEDPLUM_CLIENT_ID,
+				process.env.MEDPLUM_CLIENT_SECRET
+			);
+
+			const payload = requestBody.payload;
+
+			const consentId = payload.externalId.split("/")[1];
+			const consentReturned = await medplum.readResource("Consent", consentId);
+			const updatedConsent = {
+				...consentReturned,
+				resourceType: "Consent",
+				status: "active",
+			};
+
+			await medplum.updateResource(updatedConsent);
+			return res.status(200).send("Consent updated successfully.");
+		}
+
+		res.status(200).send("Webhook received successfully.");
+	} catch (error) {
+		console.error("Error processing webhook:", error);
+		res.status(500).send("Error processing webhook: " + error.message);
+	}
+});
 
 app.set("port", process.env.PORT || 3005);
 app.set("views", __dirname + "/app/server/views");

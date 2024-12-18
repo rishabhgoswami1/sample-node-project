@@ -10,7 +10,9 @@
 	"author": "Adem Cemil YALCIN",
 	"license": "ISC",
 	"dependencies": {
+		"@medplum/core": "^3.2.25",
 		"axios": "^1.7.9",
+		"dotenv": "^16.4.7",
 		"ejs": "latest",
 		"express": "latest",
 		"formidable": "^3.5.2"
