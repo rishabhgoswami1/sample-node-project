@@ -7,7 +7,9 @@ const formidable = require("formidable");
 const fs = require("fs");
 const { MedplumClient } = require("@medplum/core");
 
+var cors = require("cors");
 var app = express();
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 const medplum = new MedplumClient({
