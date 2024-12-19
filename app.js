@@ -14,6 +14,34 @@ const medplum = new MedplumClient({
 	baseUrl: "https://fhir.ovok.com/",
 });
 
+app.get("/download/:documentId", async (req, res) => {
+	const documentId = req.params.documentId;
+	const headers = {
+		"Content-Type": "application/json",
+		Authorization: "api_3yraefhs89eq59mq",
+	};
+
+	try {
+		const url = `https://app.documenso.com/api/v1/documents/${documentId}/download`;
+		const response = await axios.get(url, { headers });
+
+		return res.status(response.status).json(response.data);
+
+		// if (response.data && response.data.downloadUrl) {
+		// 	const downloadUrl = response.data.downloadUrl;
+		// 	const fileResponse = await axios.get(downloadUrl, { responseType: 'stream' });
+
+		// 	res.setHeader('Content-Disposition', `attachment; filename=${documentId}.pdf`);
+		// 	fileResponse.data.pipe(res);
+		// } else {
+		// 	throw new Error("Download URL not found in response");
+		// }
+	} catch (error) {
+		console.error("Error occurred:", error);
+		res.status(500).send("Error occurred: " + error.message);
+	}
+});
+
 app.post("/upload", (req, res) => {
 	const form = new formidable.IncomingForm();
 
@@ -26,7 +54,7 @@ app.post("/upload", (req, res) => {
 		try {
 			console.log("start");
 			const file = files.file[0];
-			const { title, externalId, recipient } = fields;
+			const { title, externalId, recipient, numberOfPages } = fields;
 			const recipientObj = JSON.parse(recipient[0]);
 
 			console.log("File received:", file.filepath);
@@ -34,7 +62,13 @@ app.post("/upload", (req, res) => {
 			console.log("External ID:", externalId[0]);
 			console.log("Recipient:", recipientObj);
 
-			await uploadAndSendFile(file, title[0], externalId[0], recipientObj);
+			await uploadAndSendFile(
+				file,
+				title[0],
+				externalId[0],
+				numberOfPages[0],
+				recipientObj
+			);
 			res.status(200).send("File uploaded and sent successfully.");
 		} catch (error) {
 			res.status(500).send("Error occurred: " + error.message);
@@ -42,7 +76,13 @@ app.post("/upload", (req, res) => {
 	});
 });
 
-async function uploadAndSendFile(file, title, externalId, recipient) {
+async function uploadAndSendFile(
+	file,
+	title,
+	externalId,
+	numberOfPages,
+	recipient
+) {
 	const headers = {
 		"Content-Type": "application/json",
 		Authorization: "api_3yraefhs89eq59mq",
@@ -64,6 +104,7 @@ async function uploadAndSendFile(file, title, externalId, recipient) {
 		const response = await axios.post(url, payload, { headers });
 		const uploadUrl = response.data.uploadUrl;
 		const documentId = response.data.documentId;
+		const recipientId = response.data.recipients[0].recipientId;
 
 		console.log("Document created, upload URL:", uploadUrl);
 
@@ -78,6 +119,29 @@ async function uploadAndSendFile(file, title, externalId, recipient) {
 		});
 
 		console.log("File uploaded successfully:", putResponse.status);
+
+		// Now add signature fields
+
+		const signatureFieldsUrl = `https://app.documenso.com/api/v1/documents/${documentId}/fields`;
+		const signatureFieldPayload = {
+			recipientId: recipientId,
+			type: "SIGNATURE",
+			pageNumber: Number(numberOfPages),
+			pageX: 20,
+			pageY: 77,
+			pageWidth: 20,
+			pageHeight: 7,
+		};
+
+		const signatureFieldResponse = await axios.post(
+			signatureFieldsUrl,
+			signatureFieldPayload,
+			{ headers }
+		);
+		console.log(
+			"Signature field added successfully:",
+			signatureFieldResponse.status
+		);
 
 		const sendUrl = `https://app.documenso.com/api/v1/documents/${documentId}/send`;
 
@@ -105,6 +169,7 @@ app.post("/webhook", async (req, res) => {
 			);
 
 			const payload = requestBody.payload;
+			const documentId = payload.id;
 
 			const consentId = payload.externalId.split("/")[1];
 			const consentReturned = await medplum.readResource("Consent", consentId);
@@ -112,6 +177,12 @@ app.post("/webhook", async (req, res) => {
 				...consentReturned,
 				resourceType: "Consent",
 				status: "active",
+				identifier: [
+					{
+						system: "https://app.documenso.com",
+						value: documentId,
+					},
+				],
 			};
 
 			await medplum.updateResource(updatedConsent);
