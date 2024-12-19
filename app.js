@@ -180,7 +180,7 @@ app.post("/webhook", async (req, res) => {
 				identifier: [
 					{
 						system: "https://app.documenso.com",
-						value: documentId,
+						value: documentId.toString(),
 					},
 				],
 			};
