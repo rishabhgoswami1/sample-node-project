@@ -129,8 +129,8 @@ async function uploadAndSendFile(
 			recipientId: recipientId,
 			type: "SIGNATURE",
 			pageNumber: Number(numberOfPages),
-			pageX: 20,
-			pageY: 77,
+			pageX: 30,
+			pageY: 20,
 			pageWidth: 20,
 			pageHeight: 7,
 		};
