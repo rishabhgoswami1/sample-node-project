@@ -174,6 +174,7 @@ app.post("/webhook", async (req, res) => {
 			const documentId = payload.id;
 
 			const consentId = payload.externalId.split("/")[1];
+			console.log("consent ID",consentId)
 			const consentReturned = await medplum.readResource("Consent", consentId);
 			const updatedConsent = {
 				...consentReturned,
