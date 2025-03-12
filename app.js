@@ -166,8 +166,8 @@ app.post("/webhook", async (req, res) => {
 		const requestBody = req.body;
 		if (requestBody.event === "DOCUMENT_SIGNED") {
 			await medplum.startClientLogin(
-				process.env.MEDPLUM_CLIENT_ID,
-				process.env.MEDPLUM_CLIENT_SECRET
+				"2611e082-c449-4ee7-92cd-8974cab9a8c8",
+				"62ddc118b45ea649adee100b0e7075846b61d5b2122aa71c41b0ad8f5bad8e82"
 			);
 
 			const payload = requestBody.payload;
